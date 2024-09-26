@@ -825,7 +825,7 @@ void OBCameraNode::setDefaultIMUMessage(sensor_msgs::Imu& imu_msg) {
   imu_msg.orientation.x = 0.0;
   imu_msg.orientation.y = 0.0;
   imu_msg.orientation.z = 0.0;
-  imu_msg.orientation.w = 0.0;
+  imu_msg.orientation.w = 1.0;
 
   imu_msg.orientation_covariance = {-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   imu_msg.linear_acceleration_covariance = {
@@ -839,6 +839,10 @@ sensor_msgs::Imu OBCameraNode::createUnitIMUMessage(const IMUData& accel_data,
   sensor_msgs::Imu imu_msg;
   ros::Time timestamp = ros::Time::now();
   imu_msg.header.stamp = timestamp;
+
+  // fix the orientation for "correct" tf creation
+  imu_msg.orientation.w = 1.0;
+
   imu_msg.angular_velocity.x = gyro_data.data_.x();
   imu_msg.angular_velocity.y = gyro_data.data_.y();
   imu_msg.angular_velocity.z = gyro_data.data_.z();
@@ -1658,9 +1662,22 @@ void OBCameraNode::calcAndPublishStaticTransform() {
     if (!stream_profile) {
       continue;
     }
+    std::string log_prefix = "CUSTOM-DEBUG\t";
     OBExtrinsic ex;
     try {
       ex = stream_profile->getExtrinsicTo(base_stream_profile);
+
+      // custom debugging code
+      ROS_INFO_STREAM(log_prefix << "Extrinsics for " << stream_name_[stream_index]);
+      int i = 0;
+      for (auto& rot_elem : ex.rot) {
+        ROS_INFO_STREAM(log_prefix << "Rot [ " << i++ << "] = [" << rot_elem << "]");
+      }
+      i = 0;
+      for (auto& trans_elem : ex.trans) {
+        ROS_INFO_STREAM(log_prefix << "Trans [ " << i++ << "] = [" << trans_elem << "]");
+      }
+
     } catch (const ob::Error& e) {
       ROS_ERROR_STREAM("Failed to get " << stream_name_[stream_index]
                                         << " extrinsic: " << e.getMessage());
